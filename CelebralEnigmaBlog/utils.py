@@ -1,14 +1,12 @@
 import re
-from django import template
 
-register = template.Library()
 
-@register.simple_tag
 def remove_html_tags(text):
+    # This pattern matches any text within angle brackets, including the brackets themselves
     clean = re.compile('<.*?>')
+    # Replace all occurrences with an empty string
     return re.sub(clean, '', text)
 
-@register.simple_tag
 def getStarter(html_code):
     # Define the regex pattern to find <p> tags
     p_tag_pattern = re.compile(r'<p>(.*?)</p>', re.DOTALL)

@@ -1,52 +1,46 @@
-from django.shortcuts import render,redirect
-from .models import Post,Category
+from django.shortcuts import render, redirect
 from django.urls import reverse
-import re
+from django.http import JsonResponse
+from django.core.mail import EmailMessage
 
-def remove_html_tags(text):
-    # This pattern matches any text within angle brackets, including the brackets themselves
-    clean = re.compile('<.*?>')
-    # Replace all occurrences with an empty string
-    return re.sub(clean, '', text)
-# Create your views here.
+from .tasks import send_new_blog_post_email
+from .models import Post, Category, EmailSubs
+from .htmlStrings import html_email_template
+
+
 def home(request):
     context = {
         "categories": Category.objects.all(),
         "posts": Post.objects.all().order_by('-date'),
-        "topposts":Post.objects.all().order_by('-views')[:5],
-        "remove_html_tags":remove_html_tags
+        "topposts": Post.objects.all().order_by('-views')[:5],
     }
-    return render(request, "home.html",context)
+    return render(request, "home.html", context)
 
-def post(request,title):
+
+def post(request, title):
     p = Post.objects.get(title=title)
-    if Category.objects.filter(posts=p).first() != None:
-        catList = Category.objects.filter(posts=p).first().posts.all()
-    else:
-        catList = []
+    catList = Category.objects.filter(posts=p).first().posts.all() if Category.objects.filter(posts=p).exists() else []
     context = {
-        "title":p.title,
-        "content":p.content,
-        "date":p.date,
+        "title": p.title,
+        "content": p.content,
+        "date": p.date,
         "categoryPosts": catList,
     }
-    return render(request, "post.html",context)
+    return render(request, "post.html", context)
+
 
 def write(request):
     title = request.GET.get("title")
     content = request.GET.get("content")
-    
-    if title or content:
-        context = {
-            "title": title,
-            "content": content,
-            "repeat": True,
-            "categories": Category.objects.all()
-        }
-        return render(request, "write.html", context)
-    
+    description = request.GET.get("description")
+
     context = {
-        "categories": Category.objects.all()
+        "title": title,
+        "description": description,
+        "content": content,
+        "repeat": bool(title or content),
+        "categories": Category.objects.all(),
+        "password": "sanatjha"
     }
     return render(request, "write.html", context)
 
@@ -56,31 +50,85 @@ def addpost(request):
         title = request.POST.get("title")
         content = request.POST.get("content")
         category_name = request.POST.get("category")
+        description = request.POST.get("description")
+        
         if Post.objects.filter(title=title).exists():
-            query_string = f"?title={title}&content={content}"
+            query_string = f"?title={title}&content={content}&description={description}"
             write_url = reverse("write") + query_string
             return redirect(write_url)
-        # Check if the category already exists
+        
         category, created = Category.objects.get_or_create(name=category_name)
+        post = Post.objects.create(title=title, content=content, description=description)
         
-        # Create the post
-        post = Post.objects.create(title=title, content=content)
-        
-        # If the category was just created, save it to ensure it has an ID
         if created:
             category.save()
         
-        # Add the post to the category
         category.posts.add(post)
+
+        try:
+            send_new_blog_post_email(post.title, post.description, f"http://127.0.0.1:8000/post/{title}", [subscriber.email for subscriber in EmailSubs.objects.all()])
+        except Exception as e:
+            print(f"Error sending email: {e}")
         
         return redirect("post", title=title)
+    
     return redirect("home")
 
 
-def category(request,cat):
+def category(request, cat):
     context = {
         "categories": Category.objects.all(),
         "posts": Category.objects.get(name=cat).posts.all(),
-        "topposts":Post.objects.all().order_by('-views')[:5]
+        "topposts": Post.objects.all().order_by('-views')[:5]
     }
-    return render(request, "home.html",context)
+    return render(request, "home.html", context)
+
+
+def increase_view_count(request):
+    if request.method == 'POST':
+        post_title = request.POST.get('post_title')
+        post = Post.objects.get(title=post_title)
+        post.views += 1
+        post.save()
+        return JsonResponse({'success': True})
+    
+    return JsonResponse({'success': False}, status=400)
+
+
+def newsubscribe(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        
+        if not EmailSubs.objects.filter(email=email).exists():
+            EmailSubs.objects.create(name=name, email=email)
+
+            email_message = EmailMessage(
+                "Thanks for subscribing.",
+                html_email_template.format(subscriber_name=name),
+                "sanatjha4@gmail.com",
+                [email]
+            )
+            email_message.content_subtype = "html"
+
+            try:
+                email_message.send(fail_silently=False)
+                return JsonResponse({'success': True})
+            except Exception as e:
+                return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        
+        return JsonResponse({'success': False, 'error': "Already subscribed."}, status=500)
+    
+    return JsonResponse({'success': False}, status=400)
+
+
+def unsubscribe(request):
+    if request.method == "POST":
+        email = request.POST.get("email")
+        EmailSubs.objects.get(email=email).delete()
+        return JsonResponse({'success': True})
+    
+    if request.method == "GET":
+        return render(request, "unsubscribe.html")
+    
+    return JsonResponse({'success': False}, status=400)

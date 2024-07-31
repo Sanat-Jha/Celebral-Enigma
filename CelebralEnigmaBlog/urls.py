@@ -7,6 +7,9 @@ urlpatterns = [
     path("", views.home, name="home"),
     path("post/<str:title>", views.post, name="post"),
     path("category/<str:cat>", views.category, name="post"),
-    path("write/sanatJha", views.write, name="write"),
+    path("write/", views.write, name="write"),
     path("addpost", views.addpost, name="addpost"),
+    path('increaseviewcount/', views.increase_view_count, name='increase_view_count'),
+    path('newsubscribe', views.newsubscribe, name='newsubscribe'),
+    path('unsubscribe', views.unsubscribe, name='unsubscribe'),
 ]
