@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-8($9bg!v0*nm!mzffcva#0*9#!i!&q)7p9inu+1k*b4ut(mcnm'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'CelebralEnigmaBlog',
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -128,8 +129,6 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'sanatjha4@gmail.com'
-EMAIL_HOST_PASSWORD = 'pjaj nmwc azpz iktl'
-
-
+EMAIL_HOST_USER = 'celebralenigma@gmail.com'
+EMAIL_HOST_PASSWORD = 'ovfw ltry jzol lijt'
 

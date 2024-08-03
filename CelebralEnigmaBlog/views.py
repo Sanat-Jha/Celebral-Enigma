@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect,get_object_or_404
 from django.urls import reverse
 from django.http import JsonResponse
 from django.core.mail import EmailMessage
@@ -6,6 +6,7 @@ from django.core.mail import EmailMessage
 from .tasks import send_new_blog_post_email
 from .models import Post, Category, EmailSubs
 from .htmlStrings import html_email_template
+from urllib.parse import unquote
 
 
 def home(request):
@@ -18,7 +19,7 @@ def home(request):
 
 
 def post(request, title):
-    p = Post.objects.get(title=title)
+    p = get_object_or_404(Post,title=unquote(title))
     catList = Category.objects.filter(posts=p).first().posts.all() if Category.objects.filter(posts=p).exists() else []
     context = {
         "title": p.title,
@@ -78,7 +79,7 @@ def addpost(request):
 def category(request, cat):
     context = {
         "categories": Category.objects.all(),
-        "posts": Category.objects.get(name=cat).posts.all(),
+        "posts": get_object_or_404(Category,name=unquote(cat)).posts.all(),
         "topposts": Post.objects.all().order_by('-views')[:5]
     }
     return render(request, "home.html", context)
@@ -116,8 +117,8 @@ def newsubscribe(request):
                 return JsonResponse({'success': True})
             except Exception as e:
                 return JsonResponse({'success': False, 'error': str(e)}, status=500)
-        
-        return JsonResponse({'success': False, 'error': "Already subscribed."}, status=500)
+        else:
+            return JsonResponse({'success': False, 'error': "Already subscribed."}, status=500)
     
     return JsonResponse({'success': False}, status=400)
 
